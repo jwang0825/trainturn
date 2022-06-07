@@ -11,7 +11,7 @@ def getAngle(pt1, pt2):
     else:
         return np.pi - math.atan(abs(slope))
 
-def fineCenter(kp_list):
+def findCenter(kp_list):
     x_sum = 0
     y_sum = 0
     for kp in kp_list:
@@ -49,11 +49,11 @@ thickness = -1
 out = cv2.VideoWriter("video_with_light.mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (width,height))
 
 orb = cv2.ORB_create(200)
-bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
 frames=0
 greenFrames = 0
 yellowFrames = 0
+
 while True:
     frame = vs.read()
     frame = frame[1]
@@ -61,32 +61,29 @@ while True:
         break
     frames = frames + 1
 
-    rows, cols = frame.shape[:2]
-
     img1 = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
 
-    kp, des = orb.detectAndCompute(img1, None)
+    kp = orb.detect(img1, None)
 
-    dest = fineCenter(kp)
-
-    #cv2.circle(frame, dest, 5, red, thickness)
+    dest = findCenter(kp)
 
     angle = getAngle(orig, dest)
 
-    diff = abs(orig[0] - dest[0])
-
-    if abs(np.pi / 2 - angle) > 0.15:
+    color = green
+    # 0.15
+    if abs(np.pi / 2 - angle) >= 0.15:
         yellowFrames = yellowFrames + 1
-        cv2.circle(frame, center_coordinates, radius, yellow, thickness)
+        color = yellow
     else:
         greenFrames = greenFrames + 1
-        cv2.circle(frame, center_coordinates, radius, green, thickness)
+
+    cv2.circle(frame, center_coordinates, radius, color, thickness)
 
     cv2.putText(frame,
-                'Frame count: ' + str(frames) + ' Green Lights: ' + str(greenFrames) + ' Yellow Lights: ' + str(yellowFrames),
+                'Frames Processed: ' + str(frames) + ' Green Lights: ' + str(greenFrames) + ' Yellow Lights: ' + str(yellowFrames),
                 (50, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 1,
-                (0, 255, 255),
+                red,
                 2,
                 cv2.LINE_4)    
 
