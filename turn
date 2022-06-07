@@ -1,0 +1,100 @@
+import cv2
+import math
+import numpy as np
+
+def getAngle(pt1, pt2):
+    if abs(pt1[0] - pt2[0]) < 2:
+        return np.pi / 2
+    slope = (pt2[1] - pt1[1]) / (pt2[0] - pt1[0])
+    if slope > 0:
+        return math.atan(slope)
+    else:
+        return np.pi - math.atan(abs(slope))
+
+def fineCenter(kp_list):
+    x_sum = 0
+    y_sum = 0
+    for kp in kp_list:
+        x_sum = x_sum + kp.pt[0]
+        y_sum = y_sum + kp.pt[1]
+
+    return (int(x_sum / len(kp_list)), int(y_sum / len(kp_list)))
+
+vs = cv2.VideoCapture("3686.mp4")
+
+# Get the frame rate for the original video and use it to generate the updated video
+fps = vs.get(cv2.CAP_PROP_FPS)
+
+# Get video size
+width= int(vs.get(cv2.CAP_PROP_FRAME_WIDTH))
+height= int(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+orig = (int(0.4 * width), height)
+
+# Place to draw the traffic light
+center_coordinates = (width - 120, 100)
+# Size of the traffic light
+radius = 30
+    
+# Red color in BGR
+red = (0, 0, 255)
+#Green color in BGR
+green = (0, 255, 0)
+# Yellow color in BGR
+yellow = (0, 255, 255)
+
+thickness = -1
+
+# Output video has the same fps as the orig video
+out = cv2.VideoWriter("video_with_light.mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (width,height))
+
+orb = cv2.ORB_create(200)
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+frames=0
+greenFrames = 0
+yellowFrames = 0
+while True:
+    frame = vs.read()
+    frame = frame[1]
+    if frame is None:
+        break
+    frames = frames + 1
+
+    rows, cols = frame.shape[:2]
+
+    img1 = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+
+    kp, des = orb.detectAndCompute(img1, None)
+
+    dest = fineCenter(kp)
+
+    #cv2.circle(frame, dest, 5, red, thickness)
+
+    angle = getAngle(orig, dest)
+
+    diff = abs(orig[0] - dest[0])
+
+    if abs(np.pi / 2 - angle) > 0.15:
+        yellowFrames = yellowFrames + 1
+        cv2.circle(frame, center_coordinates, radius, yellow, thickness)
+    else:
+        greenFrames = greenFrames + 1
+        cv2.circle(frame, center_coordinates, radius, green, thickness)
+
+    cv2.putText(frame,
+                'Frame count: ' + str(frames) + ' Green Lights: ' + str(greenFrames) + ' Yellow Lights: ' + str(yellowFrames),
+                (50, 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 1,
+                (0, 255, 255),
+                2,
+                cv2.LINE_4)    
+
+    out.write(frame)
+    cv2.imshow("Frame", frame)
+    key = cv2.waitKey(1) & 0xFF
+
+out.release()
+vs.release()
+print("Total Frames: " + str(frames) + " Green: " + str(greenFrames) + " Yellow: " + str(yellowFrames))
+cv2.waitKey(0)
